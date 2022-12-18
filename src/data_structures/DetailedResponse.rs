@@ -55,13 +55,13 @@ use serde::{Serialize, Deserialize};
 /// ```
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 #[serde(rename_all = "camelCase")]
-struct DetailedResponse<T: Model + serde::Serializer + serde::Deserializer> {
+struct DetailedResponse<`a, T: Model + Serialize + Deserialize<`a>> {
     pub data: Option<T>,
     pub successful: bool,
     pub message: Option<String>,
 }
 
-impl<T: Model> DetailedResponse<T> {
+impl<T: Model + Serialize + Deserialize> DetailedResponse<T> {
     pub fn new(&self) -> Self {
         return Self {
             data: None,
@@ -105,7 +105,7 @@ impl<T: Model> DetailedResponse<T> {
     }
 }
 
-impl<T: Model> MessageBody for DetailedResponse<T> {
+impl<T: Model + Serialize + Deserialize> MessageBody for DetailedResponse<T> {
     type Error = Infallible;
 
     fn size(&self) -> BodySize {
