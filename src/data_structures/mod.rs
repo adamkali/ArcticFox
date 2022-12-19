@@ -1,2 +1,2 @@
-pub mod DetailedResponse;
-pub mod Model;
+pub mod detailed_response;
+pub mod model;

@@ -1,6 +1,4 @@
-use serde::{Serialize, Deserialize};
-
-/// Model -> A Trait used for the entire backbone of
+/// A Trait used for the entire backbone of
 ///          the tavern ecosystem.
 ///
 /// Required Functions =>
@@ -42,6 +40,6 @@ use serde::{Serialize, Deserialize};
 /// }
 /// ```
 pub trait Model {
-    fn new(&self, id: Option<String>) -> Self;
+    fn new(id: Option<String>) -> Self;
     fn size(&self) -> u64;
 }
