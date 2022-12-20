@@ -56,4 +56,12 @@ pub struct Token {
     pub id:         String,
     pub hash:       String,
     pub access:     AccessRole, 
+    pub username:   String,
+}
+
+impl Token {
+    /// Create a new Token for a user. This will create a user with some default values.
+    /// However we, need to do a two things:
+    ///  - 1. Give the Token a None access.
+    ///  - 2. Hash the username as a salt and password. 
 }
