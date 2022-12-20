@@ -2,4 +2,5 @@
 //! and ecosystem to share a concise and homogenous way of interacting. 
 
 pub mod data_structures;
+pub mod authentication;
 

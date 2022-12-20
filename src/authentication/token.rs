@@ -1,11 +1,15 @@
 //! This is Taver's authentication. It is a way to make sure that users are logged in when they are
 //! accessing the application and important data
 
-use crate::data_structures::Model;
+use crate::data_structures::model::Model;
+use super::encryption;
 use chrono::{
     DateTime,
-    offset::TimeZone
+    offset::TimeZone,
+    Utc
 };
+use uuid::{uuid, Uuid};
+use std::error::Error;
 
 /// a unary struct that communicates to the ecosystem that this user has unrestricted access to the
 /// entire ecosystem.
@@ -15,7 +19,7 @@ pub struct Admin;
 /// specified api Access points, or different features until the expiration date is reached.
 pub struct Access {
     pub level:              u8,
-    pub expiration_date:    DateTime<UTC>,
+    pub expiration_date:    DateTime<Utc>,
 }
 
 /// Depending on the level that the user has (1, 2, 3); the user is able to access specified api
@@ -24,6 +28,7 @@ pub struct LTAccess {
     pub level:              u8,
 }
 
+#[derive(serde::Serialize, serde::Deserialize, Clone, PartialEq)]
 /// An enum that defines what the user is able to do. If a user making a request has a None as the
 /// AccessRole than the request is denied for most requests. There are 3 levels of access for what
 /// a user can aceess.
@@ -39,12 +44,36 @@ pub struct LTAccess {
 ///     - 8. Admin: Has access to all api endpoints.
 pub enum AccessRole {
     None,
-    Access(u8, DateTime<TimeZone>),
+    Access(u8, DateTime<Utc>),
     LTAccess(u8),
     Admin,
 }
 
-#[derive(serde::Serialize, serde::Deserialize, Clone, Copy, PartialEq)]
+impl AccessRole {
+    pub fn get_role(
+        level: Option<u8>, 
+        expiration: Option<DateTime<Utc>>
+    ) -> Result<AccessRole, Box<dyn Error>> { 
+        let mut temp: AccessRole = AccessRole::None;
+        let mut err: Error =  
+        match level {
+            Some(l) => {
+                if l == 4 as u8 {
+                    temp = AccessRole::Admin;
+                } else if l == 3 as u8 {
+                    match expiration {
+                        Some(dt) => { temp = AccessRole::Access(l, dt); },
+                        None => { temp = AccessRole::LTAccess(l); }
+                    }
+                }
+            },
+            _ => {}
+        }
+        Ok(temp)
+    }
+}
+
+#[derive(serde::Serialize, serde::Deserialize, Clone, PartialEq)]
 /// A model that holds authentication and contact information.
 /// it will be using two things:
 ///     - 1. making the id hold a guid for salting the hash.
@@ -53,15 +82,45 @@ pub enum AccessRole {
 ///     - 3. have an enum for the access allowed within Tavern.
 ///          see [`AccessRole`]
 pub struct Token {
-    pub id:         String,
-    pub hash:       String,
-    pub access:     AccessRole, 
-    pub username:   String,
+    pub userid:         String,
+    pub userhash:       String,
+    pub useraccess:     AccessRole, 
+    pub username:       String,
+    pub useremail:      String
 }
 
 impl Token {
-    /// Create a new Token for a user. This will create a user with some default values.
-    /// However we, need to do a two things:
-    ///  - 1. Give the Token a None access.
-    ///  - 2. Hash the username as a salt and password. 
+    /// Initializes the token with specified values. Will throw up an error to be dealt with on the api side
+    /// rather than the in this common crate.
+    ///
+    /// ## Arguments
+    ///
+    /// * `username`:   `String` a string that the user chooses and should be unique as well. The
+    ///                 The uniqueness will already be tested befor this even gets created, so that
+    ///                 does not need to be checked in the crate.
+    ///
+    /// * `useremail`:  `String` a string that should be unique but just like username, that will
+    ///                 checked here. This will also be used to actually send emails to the users.
+    ///
+    /// * `password`:   `String` a string that will have check for appropriate characters for
+    ///                 purposes.
+    ///
+    /// ## Returns
+    pub fn init(
+        username: String, useremail: String, password: String
+    ) -> Result<Self, argon2::Error> {
+        let userid = Uuid::new_v4();
+        let salt = format!("{}-{}", username, userid.to_string()).to_string();
+        let hash = encryption::argon_encrypt_salt(password)?;
+
+        let mut token: Token;
+            
+        Ok(Self {
+            userid: Uuid::new_v4().to_string(),
+            userhash: hash,
+            useraccess: AccessRole::None,
+            username,
+            useremail
+        })    
+    }
 }
