@@ -3,4 +3,5 @@
 
 pub mod data_structures;
 pub mod authentication;
+pub mod tavern_error;
 

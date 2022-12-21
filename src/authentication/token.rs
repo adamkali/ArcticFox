@@ -9,7 +9,10 @@ use chrono::{
     Utc
 };
 use uuid::{uuid, Uuid};
-use std::error::Error;
+use crate::tavern_error::TavernError;
+
+/// internal Type for development ease
+type Res<T> = std::result::Result<T, TavernError>;
 
 /// a unary struct that communicates to the ecosystem that this user has unrestricted access to the
 /// entire ecosystem.
@@ -53,9 +56,9 @@ impl AccessRole {
     pub fn get_role(
         level: Option<u8>, 
         expiration: Option<DateTime<Utc>>
-    ) -> Result<AccessRole, Box<dyn Error>> { 
+    ) -> Res<AccessRole> { 
         let mut temp: AccessRole = AccessRole::None;
-        let mut err: Error =  
+        
         match level {
             Some(l) => {
                 if l == 4 as u8 {
@@ -108,19 +111,20 @@ impl Token {
     /// ## Returns
     pub fn init(
         username: String, useremail: String, password: String
-    ) -> Result<Self, argon2::Error> {
+    ) -> Res<Self> {
         let userid = Uuid::new_v4();
         let salt = format!("{}-{}", username, userid.to_string()).to_string();
-        let hash = encryption::argon_encrypt_salt(password)?;
+        let token = match encryption::argon_encrypt_salt(password) {
+            Ok(h) => Self {
+                userid: userid.to_string(),
+                userhash: h,
+                username,
+                useremail,
+                useraccess: AccessRole::None
+            },
+            Err(e) => e
+        };
 
-        let mut token: Token;
-            
-        Ok(Self {
-            userid: Uuid::new_v4().to_string(),
-            userhash: hash,
-            useraccess: AccessRole::None,
-            username,
-            useremail
-        })    
+        Ok(token)
     }
 }
