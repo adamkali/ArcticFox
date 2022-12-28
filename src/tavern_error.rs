@@ -1,12 +1,10 @@
 #[derive(Debug, Clone)]
 /// An all consuming error type for the common library. That should interface with
 /// anything wrong that happens when using the TavernCommon
-///
 pub struct TavernError {
     /// The message to be passed through TavernCommon and its APIs
     pub message: String
 }
-
 
 impl TavernError {
     /// Creates a new `TavernError` with the given message
