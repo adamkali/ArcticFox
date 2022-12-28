@@ -87,36 +87,27 @@ pub trait Model {
  *     }
  * }
  *
- * # fn main() {}
+ * fn main() {
+ *     ...
+ * }
  * ```
  *
  * Adding a `Controller` to an `App` instance:
  *
  * ```
- * # use actix_web::{App, HttpResponse};
- * # use TavernCommon::Model;
- * #
- * # struct UserController;
- * #
- * # impl Controller<User> for UserController {
- * #     fn new() -> Self {
- * #         UserController
- * #     }
- * #
- * #     fn sanitize() {
- * #         // some code to sanitize data
- * #     }
- * #
- * #     fn register(self, config: &mut AppService) {
- * #         config.service(
- * #             web::resource("/api/users")
- * #                 .route(web::get().to(|| HttpResponse::Ok()))
- * #         );
- * #     }
- * # }
+ * use actix_web::{App, HttpResponse};
+ * use TavernCommon::Model;
+ * 
+ * struct UserController;
+ *
+ * impl Controller<User> for UserController {
+ *     ... // a bunch of cool and interesting stuff
+ * }
  *
  * let app = App::new()
  *     .configure(UserController::new().register);
+ *
+ * ...
  * ```
  *
  * # Required functions
@@ -132,7 +123,6 @@ pub trait Controller<T: Model + IntoIterator<Item = T>> {
     fn sanitize();
     fn register(self, config: &mut AppService); 
 }
-
 
 /**
  * A trait for handeling the neededdata manipulation in Tavern's apis.
