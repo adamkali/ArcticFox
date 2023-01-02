@@ -1,11 +1,5 @@
 use actix_web::dev::AppService;
-use surrealdb::{
-    Datastore,
-    Session
-};
 use crate::tavern_error::TavernError;
-
-type TavernModelResult = Result<T: Model + IntoIterator<Item = T>, TavernError>;
 
 /// A Trait used for the entire backbone of
 ///          the tavern ecosystem.
@@ -124,26 +118,3 @@ pub trait Controller<T: Model + IntoIterator<Item = T>> {
     fn register(self, config: &mut AppService); 
 }
 
-/**
- * A trait for handeling the neededdata manipulation in Tavern's apis.
- *
- * ## Example 
- *
- * ### Get all for the database:
- * ```
- * async fn get_all_foos(ds: &Datastore, session: &Session ) -> Vec<Foo> {
- *     let ast = parse("USE NS tavern DB tavern_profile; SELECT * FROM foo;")
- *     let res = 
- * }
- * ```
- * 
- */
-pub trait Repository<T: Model> {
-    fn get_all(ds: &Datastore, session: &Session ) -> TavernModelResult;
-    fn get(ds: &Datastore, session: &Session ) -> TavernModelResult;
-    fn create_batch(ds: &Datastore, session: &Session ) -> TavernModelResult;
-    fn create(ds: &Datastore, session: &Session ) -> TavernModelResult;
-    fn update_or_insert_batch(ds: &Datastore, session: &Session ) -> TavernModelResult;
-    fn update_or_insert(ds: &Datastore, session: &Session ) -> TavernModelResult;
-    fn delete(ds: &Datastore, session: &Session ) -> TavernModelResult;
-}
