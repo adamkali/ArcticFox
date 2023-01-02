@@ -5,14 +5,12 @@ use crate::data_structures::model::Model;
 use super::encryption;
 use chrono::{
     DateTime,
-    offset::TimeZone,
     Utc
 };
-use uuid::{uuid, Uuid};
+use uuid::Uuid;
 use crate::tavern_error::TavernError;
 
-/// internal Type for development ease
-type Res<T> = std::result::Result<T, TavernError>;
+type Res<T> = Result<T, TavernError>;
 
 /// a unary struct that communicates to the ecosystem that this user has unrestricted access to the
 /// entire ecosystem.
@@ -53,24 +51,42 @@ pub enum AccessRole {
 }
 
 impl AccessRole {
+    /// Returns the appropriate `AccessRole` for the given user level and expiration date.
+    ///
+    /// ## Arguments
+    ///
+    /// * `level`:       `Option<u8>` representing the level of access for the user. 
+    ///                 The possible values are `1`, `2`, `3`, or `4`. If `None`, 
+    ///                 `AccessRole::None` is returned.
+    ///
+    /// * `expiration`:  `Option<DateTime<Utc>>` representing the expiration date for the user's access. 
+    ///                 If `Some`, `AccessRole::Access` is returned with the given level and expiration date. 
+    ///                 If `None`, `AccessRole::LTAccess` is returned with the given level.
+    ///
+    /// ## Returns
+    ///
+    /// `Res<AccessRole>`: An `Ok` variant with the appropriate `AccessRole` if the provided level is valid. 
+    /// An `Err` variant with an error message otherwise.
     pub fn get_role(
         level: Option<u8>, 
         expiration: Option<DateTime<Utc>>
     ) -> Res<AccessRole> { 
-        let mut temp: AccessRole = AccessRole::None;
+        let temp: AccessRole;
         
         match level {
             Some(l) => {
-                if l == 4 as u8 {
+                if l == 4_u8 {
                     temp = AccessRole::Admin;
-                } else if l == 3 as u8 {
+                } else if (1_u8..=3_u8).contains(&l) {
                     match expiration {
                         Some(dt) => { temp = AccessRole::Access(l, dt); },
                         None => { temp = AccessRole::LTAccess(l); }
                     }
+                } else {
+                    temp = AccessRole::LTAccess(0);
                 }
             },
-            _ => {}
+            _ => { temp = AccessRole::None; },
         }
         Ok(temp)
     }
@@ -85,6 +101,7 @@ impl AccessRole {
 ///     - 3. have an enum for the access allowed within Tavern.
 ///          see [`AccessRole`]
 pub struct Token {
+    pub id:             String,
     pub userid:         String,
     pub userhash:       String,
     pub useraccess:     AccessRole, 
@@ -96,7 +113,7 @@ impl Token {
     /// Initializes the token with specified values. Will throw up an error to be dealt with on the api side
     /// rather than the in this common crate.
     ///
-    /// ## Arguments
+    /// # Arguments
     ///
     /// * `username`:   `String` a string that the user chooses and should be unique as well. The
     ///                 The uniqueness will already be tested befor this even gets created, so that
@@ -108,23 +125,143 @@ impl Token {
     /// * `password`:   `String` a string that will have check for appropriate characters for
     ///                 purposes.
     ///
-    /// ## Returns
+    /// # Returns
+    ///
+    /// If successful, returns a `Self` object. If there is an error, returns a `TavernError` object.
     pub fn init(
-        username: String, useremail: String, password: String
+        &self, 
+        username: String, 
+        useremail: String,
+        password: String
     ) -> Res<Self> {
-        let userid = Uuid::new_v4();
-        let salt = format!("{}-{}", username, userid.to_string()).to_string();
-        let token = match encryption::argon_encrypt_salt(password) {
-            Ok(h) => Self {
-                userid: userid.to_string(),
-                userhash: h,
-                username,
-                useremail,
-                useraccess: AccessRole::None
-            },
-            Err(e) => e
-        };
+        let id = Uuid::parse_str(&self.id);
 
-        Ok(token)
+        match id {
+           Ok(i) => {
+               if i.is_nil() {
+                   let userid = Uuid::new_v4().to_string();
+                   match encryption::argon_encrypt_salt(password) {
+                       Ok(h) => Ok(Self {
+                           id:         i.to_string(),
+                           userid,
+                           userhash:   h,
+                           username,
+                           useremail,
+                           useraccess: AccessRole::None
+                       }),
+                       Err(e) => Err(TavernError::new(e.err())),
+                   }
+               } else {
+                    let id = Uuid::new_v4().to_string();
+                    let userid = Uuid::new_v4().to_string();
+                    match encryption::argon_encrypt_salt(password) {
+                        Ok(h) => Ok(Self {
+                            id,
+                            userid,
+                            userhash:   h,
+                            username,
+                            useremail,
+                            useraccess: AccessRole::None
+                        }),
+                        Err(e) => Err(TavernError::new(e.err())),
+                    }
+               }
+           },
+           Err(_) => Err(TavernError { 
+               message: "An Error occurred in processing Token initialization".to_string(), 
+               error_type: crate::tavern_error::TavernErrorType::GeneralError, 
+           })
+        }
+    }
+}
+
+impl std::default::Default for Token {
+    /// Creates a new `Token` instance with default values.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use tavernWebCommon::models::user::Token;
+    ///
+    /// let token = Token::default();
+    /// ```
+    fn default() -> Self {
+        Self {
+            id:         Uuid::new_v4().to_string(),
+            userid:     Uuid::new_v4().to_string(),
+            userhash:   "".to_string(),
+            username:   "".to_string(),
+            useremail:  "".to_string(),
+            useraccess: AccessRole::None
+        }
+    }
+}
+
+impl Model for Token {
+    /// Creates a new `Token` instance.
+    ///
+    /// # Arguments
+    ///
+    /// * `id`: An optional `String` representing the id of the `Token`.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use TavernWebCommon::models::user::{Model, Token};
+    ///
+    /// let token_with_id = Token::new(Some("12345".to_string()));
+    /// let token_without_id = Token::new(None);
+    /// ```
+    fn new(id: Option<String>) -> Self {
+        match id {
+            Some(i) => {
+                Self {
+                    id: i,
+                    ..Self::default()
+                }
+            },
+            None => {
+                Self::default()
+            },
+        }
+    }
+
+    /// Calculates the size of the `Token` instance in bytes.
+    ///
+    /// ## Returns
+    ///
+    /// Returns a `u64` representing the size of the `Token` instance in bytes.
+    fn size(&self) -> u64 {
+        let mut access_role_string = String::new();
+        if let AccessRole::None = self.useraccess {
+            access_role_string = "Free Tier".to_string();
+        } else if let AccessRole::Admin = self.useraccess {
+            access_role_string = "Admin".to_string();
+        } else if let AccessRole::Access(i, d) = self.useraccess {
+            if i == 1_u8 {
+                access_role_string = format!("Adventurer Tier {}", d);
+            } else if i == 2_u8 {
+                access_role_string = format!("Hero Tier {}", d);
+            } else if i == 3_u8 {
+                access_role_string = format!("Legend Tier {}", d);
+            }
+        } else if let AccessRole::LTAccess(i) = self.useraccess {
+            if i == 1_u8 {
+                access_role_string = "Eternal Adventurer Tier".to_string();
+            } else if i == 2_u8 {
+                access_role_string = "Eternal Hero Tier".to_string();
+            } else if i == 3_u8 {
+                access_role_string = "Legend Tier".to_string();
+            }
+        }
+
+        (
+            self.id.len() 
+                + self.userid.len() 
+                + self.userhash.len() 
+                + self.username.len() 
+                + self.useremail.len()
+                + access_role_string.len()
+        ) as u64
     }
 }

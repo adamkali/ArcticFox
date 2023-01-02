@@ -1,40 +1,42 @@
-use argon2::{
-    password_hash::{
-        rand_core::OsRng,
-        PasswordHash, PasswordHasher, PasswordVerifier, SaltString
-    },
-    Argon2
-};
-use crate::tavern_error::TavernError;
+use argon2::{self, Config, ThreadMode};
 
-/// A private type for internal use. Just makes life easier.
-type Result<T> = std::result::Result<T, TavernError>;
+use crate::tavern_error::{TavernError, TRes};
 
-/// argon_encrypt_salt is a function that will take in a string that needs encrypted, a salting
-/// string, and then use the rust implementation of argon2 to salt the password and return the encrypted string
+use uuid::Uuid;
+
+/// Using Argon2 v1.0.0
 ///
+/// the fn used here is hash_encoded
+/// 
 /// ## Arguments
 ///
-/// * to_be_encrypted: `String`
-/// * salt: `&str`
+/// * to_be_encrypted: [String] a string like a password that needs to be encrypted.
 ///
-/// ## Returns
+/// ## Returns 
+/// 
+/// Returns a Result of String or a TavernError.
+/// 
 ///
-/// `hash`: and encrypted string that is encrypted using Argon2.
-///
-/// ## Notes
-///
-/// `hash` can be verified later, by using the [`validate_password`] function. 
-///
-pub fn argon_encrypt_salt(to_be_encrypted: String) -> Result<String> {
-    let to_be_encrypted_as_bytes = to_be_encrypted.as_bytes();
-    let salt = SaltString::generate(&mut OsRng);
-    let argon2_config = Argon2::default();
-
-    match argon2_config.hash_password(to_be_encrypted_as_bytes, &salt) {
-        Ok(h) => { h.to_string()},
-        _ => { TavernError::new("There was an encryption error.".to_string()) }
+pub fn argon_encrypt_salt(to_be_encrypted: String) -> TRes<String> {
+    let config = Config {
+        thread_mode: ThreadMode::Parallel,
+        lanes: 4,
+        ..Config::default()
     };
+
+    // Encrypt in 
+    match argon2::hash_encoded(to_be_encrypted.as_bytes(),
+                                    Uuid::new_v4().as_bytes(),
+                                    &config)
+    {
+        Ok(hash) => Ok(hash),
+        Err(_) => { Err( 
+            TavernError { 
+                message: "There was a problem encrypting the password".to_string(), 
+                error_type: crate::tavern_error::TavernErrorType::GeneralError 
+            }
+        )},
+    }
 }
 
 /// validate_password: a function that takes in a password and a hash. From there we can validate
@@ -47,55 +49,115 @@ pub fn argon_encrypt_salt(to_be_encrypted: String) -> Result<String> {
 ///
 /// ## Returns
 ///
-/// returns a Result<bool, argon2::Error>
+/// returns a Result<bool, TavernError>
 ///
 /// ## Errors
 ///
-/// will return an error that needs to be handeled in the API.
-pub fn validate_password(password: String, hash: &str) -> Result<bool> {
-    let password_as_bytes = password.as_bytes();
-    let parsed_hash = PasswordHash::new(hash);
-
-    let argon2_config = Argon2::default();
-    match argon2_config.verify_password(password_as_bytes, &parsed_hash) {
-        Ok(m) => m,
-        Err(e) => TavernError::new(format!("Could not verify password because of: {}", e.to_string()))
+/// will return an error that needs to be handeled in the API. Will return a GeneralError
+pub fn validate_password(password: String, hash: &str) -> TRes<bool> {
+    match argon2::verify_encoded(hash, password.as_bytes()) {
+        Ok(b) => { Ok(b)},
+        Err(_) => { Err(
+            TavernError { 
+                message: "There was aproblem trying to verify the password".to_string(), 
+                error_type: crate::tavern_error::TavernErrorType::GeneralError 
+            }
+        )}
     }
 }
+/// Validates whether a given password meets certain requirements.
+///
+/// # Arguments
+///
+/// * `password` - A string slice representing the password to validate.
+///
+/// # Returns
+///
+/// Returns a `Result` containing a boolean value indicating whether the password is valid or not.
+/// If the password is invalid, the `Err` variant will contain a `TavernError` with a message
+/// describing the specific validation errors./
+///
+/// # Examples
+///
+/// ```
+/// use tavernError;
+/// let password = "P@55word";
+/// let is_valid = is_valid_password(password);
+/// assert!(is_valid.is_ok());
+/// ```
+///
+/// ```
+/// use TavernError;
+/// let password = "p@55word";
+/// let is_valid = is_valid_password(password);
+/// assert!(is_valid.is_err());
+/// ```
+///
+/// ```
+/// use TavernError;
+/// let password = "P@55word ";
+/// let is_valid = is_valid_password(password);
+/// assert!(is_valid.is_err());
+/// ```
+///
+/// ```
+/// use TavernError;
+/// let password = "P@55wor d";
+/// let is_valid = is_valid_password(password);
+/// assert!(is_valid.is_err());
+/// ```
+///
+/// ```
+/// use TavernError;
+/// let password = "P@55worddd";
+/// let is_valid = is_valid_password(password);
+/// assert!(is_valid.is_err());
+/// ```
+pub fn is_valid_password(password: &str) -> TRes<bool> {
+    let mut error_message: Option<String> = None;
 
-/// is_valid_password: a function to use when signing up to see if the password from a
-/// SignupRequest is strong enough. This will check for:
-///     - 1. A capital letter.
-///     - 2. A lowercase letter.
-///     - 3. A number
-///     - 4. A symbol that does not alter sql queries.
-///     - 5. A minimum of 8 characters.
-///     - 6. A maximum of 32 characters.
-///     - 7. No 3 repeating characters.
-///
-/// ## Arguments 
-///
-/// * `password`: a password string passed in by the SignupRequest to check if the password is
-/// strong enough
-///
-/// ## Returns 
-///
-/// returns a bool depending if the conditions are met.
-pub fn is_valid_password(password: &str) -> (bool, Option<String>) {
     if password.len() < 8 || password.len() > 32 {
-        return (false, Some("Password must have between 8 and 32 characters to be valid.".to_string()));
+        error_message = Some("- The error must be between 8 and 32 characters".to_string()); 
     }
 
-    let mut has_uppercase = false;
-    let mut has_lowercase = false;
-    let mut has_number    = false;
-    let mut has_symbol    = false;
-
-    let mut last_seen: char;
+    let mut has_uppercase    = false;
+    let mut has_lowercase    = false;
+    let mut has_number       = false;
+    let mut has_symbol       = false;
+    let mut last_seen: char  = ' ';
     let mut last_seen_number = 0;
+
     for c in password.chars() {
+        if c == ' ' {
+            let place_holder = "- There should not be a space in a password.".to_string();
+            error_message = 
+                match error_message {
+                    Some(e) => {
+                        let err = format!(
+                            "{}\n{}\n",
+                            e, place_holder 
+                        );
+                        Some(err)
+                    },
+                    None => Some(place_holder)
+                };
+            break
+        }
+
         if last_seen == c && last_seen_number == 2 { 
-             return ( false, Some("A password should not have 3 consecutive same characters.".to_string()));
+            let place_holder = "- There should not be 3 consective characters that are the same.".to_string();
+            error_message = 
+                match error_message {
+                    Some(e) => {
+                        let err = format!(
+                            "{}\n{}\n",
+                            e, place_holder 
+                        );
+                        Some(err)
+                    },
+                    None => Some(place_holder)
+                };
+            break
         } else if last_seen == c {
             last_seen_number += 1;
         } else if last_seen != c {
@@ -111,16 +173,50 @@ pub fn is_valid_password(password: &str) -> (bool, Option<String>) {
             has_number = true;
         } else if c == '!' || c == '@' || c == '#' || 
             c == '$' || c == '%' || c == '^' || 
-            c == '&' || c == '*' || c == '(' || 
-            c == ')' || c == '_' || c == '-' || 
+            c == '&' || c == '*' || 
+            c == '_' || c == '-' || 
             c == '+' || c == '=' {
             has_symbol = true
+        } else {
+            let place_holder 
+                = format!("- There is an invalid character in the password: {}.", c);
+            error_message = 
+                match error_message {
+                    Some(e) => {
+                        let err = format!(
+                            "{}\n{}\n",
+                            e, place_holder 
+                        );
+                        Some(err)
+                    },
+                    None => Some(place_holder)
+                };
+            break
         }
     }
 
     if !has_uppercase || !has_lowercase || !has_number || !has_symbol {
-        return (false, Some("The password must have an Uppercase letter, a Lowercase letter, a Symbol (!@#$%^&*()_-+=), or a Number in order to be a valid password.".to_string()));
+        let place_holder = "The password must contain at least a capital letter, a lowercase letter and a numer.".to_string();
+
+        error_message = 
+        match error_message {
+            Some(e) => {
+                let err = format!(
+                    "{}{}\n",
+                    e, place_holder 
+                    );
+                Some(err)
+            },
+            None => Some(place_holder)
+        };
     }
 
-    (true, None)
+    match error_message {
+        Some(message) => Err(TavernError {
+            message,
+            error_type: crate::tavern_error::TavernErrorType::GeneralError, 
+        }),
+        None => Ok(true)
+    }
+    
 }

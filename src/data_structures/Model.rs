@@ -1,5 +1,9 @@
 use actix_web::dev::AppService;
-use crate::tavern_error::TavernError;
+
+use std::{
+    default::Default,
+    clone::Clone
+};
 
 /// A Trait used for the entire backbone of
 ///          the tavern ecosystem.
@@ -42,9 +46,10 @@ use crate::tavern_error::TavernError;
 ///     }
 /// }
 /// ```
-pub trait Model {
+pub trait Model: Default + Clone {
     fn new(id: Option<String>) -> Self;
     fn size(&self) -> u64;
+    
 }
 
 /**
