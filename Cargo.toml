@@ -18,6 +18,8 @@ chrono = { version = "0.4.23", features = ["serde"] }
 rust-argon2 = "1.0"
 rand_core = { version = "0.6", features = ["std"] }
 fmt = "0.1.0"
+sea-orm = "0.10.6"
+log = "0.4.17"
 
 [dependencies.uuid]
 version = "1.2.2"

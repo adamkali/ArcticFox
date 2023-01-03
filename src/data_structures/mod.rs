@@ -1,2 +1,2 @@
-pub mod detailed_response;
+pub mod respondent;
 pub mod model;
