@@ -9,6 +9,7 @@ use chrono::{
 };
 use uuid::Uuid;
 use crate::tavern_error::TavernError;
+use crate::processing;
 
 type Res<T> = Result<T, TavernError>;
 
@@ -29,7 +30,7 @@ pub struct LTAccess {
     pub level:              u8,
 }
 
-#[derive(serde::Serialize, serde::Deserialize, Clone, PartialEq)]
+#[derive(serde::Serialize, serde::Deserialize, Clone, PartialEq, Eq, Debug)]
 /// An enum that defines what the user is able to do. If a user making a request has a None as the
 /// AccessRole than the request is denied for most requests. There are 3 levels of access for what
 /// a user can aceess.
@@ -92,7 +93,7 @@ impl AccessRole {
     }
 }
 
-#[derive(serde::Serialize, serde::Deserialize, Clone, PartialEq)]
+#[derive(serde::Serialize, serde::Deserialize, Clone, PartialEq, Eq, Debug)]
 /// A model that holds authentication and contact information.
 /// it will be using two things:
 ///     - 1. making the id hold a guid for salting the hash.
@@ -134,24 +135,28 @@ impl Token {
         useremail: String,
         password: String
     ) -> Res<Self> {
+
+        let errorable = encryption::is_valid_password(&password).err();
+        if let Some(e) = errorable { return Err(e); }
+        
         let id = Uuid::parse_str(&self.id);
 
         match id {
-           Ok(i) => {
-               if i.is_nil() {
-                   let userid = Uuid::new_v4().to_string();
-                   match encryption::argon_encrypt_salt(password) {
-                       Ok(h) => Ok(Self {
-                           id:         i.to_string(),
-                           userid,
-                           userhash:   h,
-                           username,
-                           useremail,
-                           useraccess: AccessRole::None
-                       }),
-                       Err(e) => Err(TavernError::new(e.err())),
-                   }
-               } else {
+            Ok(i) => {
+                if i.is_nil() {
+                    let userid = Uuid::new_v4().to_string();
+                    match encryption::argon_encrypt_salt(password) {
+                        Ok(h) => Ok(Self {
+                            id:         i.to_string(),
+                            userid,
+                            userhash:   h,
+                            username,
+                            useremail,
+                            useraccess: AccessRole::None
+                        }),
+                        Err(e) => Err(processing!("Could not process the password because of: {}", e)),
+                    }
+                } else {
                     let id = Uuid::new_v4().to_string();
                     let userid = Uuid::new_v4().to_string();
                     match encryption::argon_encrypt_salt(password) {
@@ -163,14 +168,11 @@ impl Token {
                             useremail,
                             useraccess: AccessRole::None
                         }),
-                        Err(e) => Err(TavernError::new(e.err())),
+                        Err(e) => Err(processing!("Could not process the password because of: {}", e)),
                     }
-               }
-           },
-           Err(_) => Err(TavernError { 
-               message: "An Error occurred in processing Token initialization".to_string(), 
-               error_type: crate::tavern_error::TavernErrorType::GeneralError, 
-           })
+                }
+            },
+            Err(_) => Err(TavernError::default())
         }
     }
 }

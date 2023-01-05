@@ -1,6 +1,7 @@
 use argon2::{self, Config, ThreadMode};
 
 use crate::tavern_error::{TavernError, TRes};
+use crate::processing;
 
 use uuid::Uuid;
 
@@ -30,12 +31,7 @@ pub fn argon_encrypt_salt(to_be_encrypted: String) -> TRes<String> {
                                     &config)
     {
         Ok(hash) => Ok(hash),
-        Err(_) => { Err( 
-            TavernError { 
-                message: "There was a problem encrypting the password".to_string(), 
-                error_type: crate::tavern_error::TavernErrorType::GeneralError 
-            }
-        )},
+        Err(err) => Err(processing!("There was a problem hashing the password: {}", err)),
     }
 }
 
@@ -57,12 +53,7 @@ pub fn argon_encrypt_salt(to_be_encrypted: String) -> TRes<String> {
 pub fn validate_password(password: String, hash: &str) -> TRes<bool> {
     match argon2::verify_encoded(hash, password.as_bytes()) {
         Ok(b) => { Ok(b)},
-        Err(_) => { Err(
-            TavernError { 
-                message: "There was aproblem trying to verify the password".to_string(), 
-                error_type: crate::tavern_error::TavernErrorType::GeneralError 
-            }
-        )}
+        Err(err) => Err(processing!("There was a problem hashing the password: {}", err)),
     }
 }
 /// Validates whether a given password meets certain requirements.
@@ -113,7 +104,7 @@ pub fn validate_password(password: String, hash: &str) -> TRes<bool> {
 /// let is_valid = is_valid_password(password);
 /// assert!(is_valid.is_err());
 /// ```
-pub fn is_valid_password(password: &str) -> TRes<bool> {
+pub fn is_valid_password(password: &str) -> TRes<()> {
     let mut error_message: Option<String> = None;
 
     if password.len() < 8 || password.len() > 32 {
@@ -212,11 +203,8 @@ pub fn is_valid_password(password: &str) -> TRes<bool> {
     }
 
     match error_message {
-        Some(message) => Err(TavernError {
-            message,
-            error_type: crate::tavern_error::TavernErrorType::GeneralError, 
-        }),
-        None => Ok(true)
+        Some(message) => Err(processing!("This is not a valid password: {}", message)),
+        None => Ok(())
     }
     
 }
