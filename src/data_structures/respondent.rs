@@ -104,21 +104,22 @@ impl<T: Model + Serialize > Respondent<T> {
     /// an error.
     pub fn not_success(&self) -> bool { matches!(self, Respondent::Unsuccessful(_t, _e)) }
 
-    pub fn respond(&self) -> HttpResponse { 
-        match self {
-            Successful(_) => HttpResponse::Ok().body((*self).clone()),
-            Unsuccessful(_, err) => {
-                let container: Self = (*self).clone();
-                match err {
-                    ServerError(s, _m) => 
-                        HttpResponse::build(*s).body(container),
-                    ProcessingError(_m) => HttpResponse::build(
-                        actix_web::http::StatusCode::INTERNAL_SERVER_ERROR)
-                        .body(container)
-                }
-            }
-        }
-    }  
+    //pub fn respond(&self) -> HttpResponse { 
+    //    
+    //    match self {
+    //        Successful(t) => HttpResponse::Ok().body(Successful(t.clone())),
+    //        Unsuccessful(_, err) => {
+    //            let container: Self = (*self).clone();
+    //            match err {
+    //                ServerError(s, _m) => 
+    //                    HttpResponse::build(*s).body(container),
+    //                ProcessingError(_m) => HttpResponse::build(
+    //                    actix_web::http::StatusCode::INTERNAL_SERVER_ERROR)
+    //                    .body(container)
+    //            }
+    //        }
+    //    }
+    //}  
 }
 
 
