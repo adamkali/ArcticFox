@@ -2,13 +2,13 @@
 
 ## Things to do
 
-- [ ] add the following to `tavern_error.rs`
+- [x] add the following to `tavern_error.rs`
     - `UnathorizedError(m)`
     - `ForbiddenError(m)`
     - `UserError(m)`
     - `ServerError(m)`
     - `UncommonError(m, sc)`
-- [ ] add `pub fn to_code() -> actix_web::http::StatusCode` to tavern_error impl
-- [ ] add `pub async fn run_async(&self, f: F) -> Future<Result<(), TavernError>>` to `Respondent`'s implementation.
-- [ ] add `respondent_bind!(dyn &T: Model)` to macros that will return a `Respondent::Successful(Model)`
+- [x] add `pub fn to_code() -> actix_web::http::StatusCode` to tavern_error impl
+- [x] add `pub async fn run_async(&self, f: F) -> Future<Result<(), TavernError>>` to `Respondent`'s implementation.
+- [x] add `respondent_bind!(dyn &T: Model)` to macros that will return a `Respondent::Successful(Model)` ::: Made into a generating function instead of a generic.
 

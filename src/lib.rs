@@ -1,9 +1,36 @@
-//! This is the common library for Tavern's ecosystem. It is a way for all of Tavern's components
-//! and ecosystem to share a concise and homogenous way of interacting. 
-
-pub mod data_structures;
-pub mod authentication;
-pub mod tavern_error;
+//! ArcticFox is a freezable functional box 'pointer'. It stores data inside of a struct that
+//! implements the `Cub` triat by using the bond macro or by using the adoption macro you can 
+//! register a primative struct to an ArcticFox. This will create an AdoptedCub trait for 
+//! communication. As long as the operation done in run that is Ok() will be considered Successful
+//! and the operation will take effect; however as soon as there is an Unsuccessful(), Arctic fox
+//! will freeze the operations and the Cub will stay frozen for the rest of the lifetime of the
+//! ArcticFox's life time.
+//!
+//! # Example
+//!
+//! ## Assigning and operating on the ArcticFox Monad.
+//!
+//! ```rust
+//!  let fox: ArcticFox = bond!(FooCub::default());
+//!
+//!  fox.run(|foo| {
+//!      println!("{}", foo);
+//!  })
+//! ```
+//! ## Assigning and operating on the `ArcticFox` Monad with an `AdoptedCub`
+//!
+//! ```rust
+//! let fox: ArcticFox = adopt!(false);
+//!
+//! fox.async_run(|bool_cub| async move {
+//!     while bool_cub {
+//!         // do some async calls and if they fail update bool_cub
+//!     }
+//! })
+//!
+//! ```
+pub mod arctic_fox_data_structures;
+pub mod arctic_fox_error;
 
 #[macro_use]
 pub mod macros;

@@ -1,12 +1,9 @@
 [package]
-name = "tavern_common"
+name = "arctic_fox"
 version = "0.3.0"
 edition = "2021"
 license = "MIT"
-description = "A common library for tavern's services. It is a way to standardize the requests and responses."
-homepage = "https://github.com/adamkali/Tavern"
-documentation = "in code"
-repository = "https://github.com/adamkali/TavernCommon.git"
+description = "What started as a way to standardize my api requests and responses, turned into a functional programmer's dream. ArcticFox: Arctic from being able to pull out values at any point and 'freeze' the value while computing, F for Functional, and ox for a Box smart pointer. Even though this is not a smart pointer, what it is doing behind the scenes is acting as a layer to always transmit to the code what is being held on the inside."
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 

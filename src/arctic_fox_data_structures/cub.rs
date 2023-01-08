@@ -1,12 +1,10 @@
-use actix_web::dev::AppService;
-
 use std::{
     default::Default,
     clone::Clone
 };
 
 /// A Trait used for the entire backbone of
-///          the tavern ecosystem.
+/// Arctic fox 
 ///
 /// Required Functions =>
 /// ```
@@ -19,12 +17,12 @@ use std::{
 /// Example => 
 ///
 /// ```
-/// struct DumbModel {
+/// struct DumbCub {
 ///     username: String,
 ///     otherthing: String,
 /// }
 ///
-/// impl Model for DumbModel {
+/// impl Cub for DumbCub {
 ///     pub fn new(&self, id: Option<String>) -> Self {
 ///         match id {
 ///             Some(i) => {
@@ -46,10 +44,9 @@ use std::{
 ///     }
 /// }
 /// ```
-pub trait Model: Default + Clone {
+pub trait Cub: Default + Clone  {
     fn new(id: Option<String>) -> Self;
     fn size(&self) -> u64;
-    
 }
 
 
