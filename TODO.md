@@ -26,6 +26,7 @@ pub trait Freezer {
     }
 ```
 make the EnumType Frozen after using it ` *self = Frozen(t.clone, Freezer::default_freezer())`
+- [ ] Get the Freezer agent: `let reason: String = fox.agent()` depending on what triggered the freezing.
 
 - [ ] Make a function to iterate over an iterater and make it run async by having a queue
 ```rust
