@@ -45,8 +45,8 @@ use std::{
 /// }
 /// ```
 pub trait Cub: Default + Clone  {
-    fn new(id: Option<String>) -> Self;
+    //fn new(id: Option<String>) -> Self;
+
     fn size(&self) -> u64;
 }
-
 

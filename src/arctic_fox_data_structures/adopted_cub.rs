@@ -13,14 +13,9 @@ impl<T: Clone> AdoptedCub<T> {
 }
 
 impl<T: Default + Clone> Cub for AdoptedCub<T> {
-    fn new(_id: Option<String>) -> Self {
-        AdoptedCub {
-            data: T::default(),
-            phantom: PhantomData
-        }
-    }
-
     fn size(&self) -> u64 {
         std::mem::size_of::<T>() as u64
     }
 }
+
+
