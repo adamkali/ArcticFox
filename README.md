@@ -34,6 +34,10 @@ This was originally written to make my life easier in writing a common library f
 
 When you dont really care if there is an error during operation. You care about at the end of operation **WAS** there an error, and if there was what was the reason?
 
+## How should i think about `ArcticFox`
+
+Think of it as an ArcticFox goes on a journey with a cub. If the cub makes it throught the journey without any hicups: the cub is `Live(T)`. If the data you are useing errors in some way then the cub is frozen for the cub's saftey by the ArcticFox parent and then when the cub is given where needed, andthe ArcticFox relinqueshes ownership when `ArcticFox::freeze()` is called. This autimatically halts any operation on the cub and effectively makes it static.
+
 ## In the future
  
 - [ ] Have features for Actix
