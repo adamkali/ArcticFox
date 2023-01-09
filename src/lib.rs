@@ -35,6 +35,13 @@ pub mod arctic_fox_error;
 #[macro_use]
 pub mod macros;
 
-pub use arctic_fox_data_structures::arctic_fox_monad::*;
-pub use arctic_fox_data_structures::cub::Cub;
-pub use arctic_fox_data_structures::adopted_cub::AdoptedCub;
+pub mod prelude {
+    pub use crate::arctic_fox_data_structures::arctic_fox_monad::{
+        ArcticFox,
+        ArcticFoxStruct,
+        Frozen,
+        Live,
+    };
+    pub use crate::arctic_fox_data_structures::cub::Cub;
+    pub use crate::arctic_fox_data_structures::adopted_cub::AdoptedCub;
+}

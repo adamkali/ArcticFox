@@ -1,5 +1,3 @@
-use crate::arctic_fox_error::ArcticFoxError;
-
 use super::cub::Cub;
 
 //use std::{
@@ -91,12 +89,24 @@ impl<'a, T: Cub + Serialize > ArcticFox<'a, T> {
 
 #[cfg(feature = "arctic_actix")]
 pub mod arctic_actix {
+    use crate::prelude::*;
 
     use core::task::Poll;
     use actix_web::{
         web::Bytes,
         body::{MessageBody, BodySize},
     };
+
+    use std::{
+        convert::Infallible, 
+        pin::Pin, 
+        task::Context,
+        future::Future,
+    };
+
+    use std::future::Future;
+
+    use serde::Serialize;
 
     impl<T: Cub + Serialize + Clone> MessageBody for ArcticFox<T> {
         type Error = Infallible;
