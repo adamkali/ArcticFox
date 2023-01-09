@@ -2,11 +2,11 @@
 
 ## Things to do
 
-- [ ] Rename the EnumTypes: 
+- [x] Rename the EnumTypes: 
   - `Live(T)`
   - `Frozen(T, &dyn Freezer)`
 
-- [ ] Make the Freezer trait
+- [x] Make the Freezer trait
 ```rust
 pub trait Freezer {
     // other things but i am not sure right now.
@@ -15,7 +15,7 @@ pub trait Freezer {
 ```
 - [ ] Make a Freezer generator macro
 - [ ] Make a freeze macro takes an `ArcticFox` & `dyn Fault` might need to be a proc macro.
-- [ ] Make the 
+- [x] Make the 
 ```rust
     /// Simple method to provide the value encased in the monad.
     pub fn freeze(&self) -> (T, Option<ArcticFoxError>){
