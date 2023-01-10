@@ -13,9 +13,6 @@ use serde::Serialize;
 
 //use crate::{unauthorized, bond};
 
-
-static SUCCESSFUL_MESSAGE: &str = "The Request is Successful";
-
 #[derive(Serialize)]
 pub struct ArcticFoxStruct<T: Cub> {
     pub data: T,
@@ -23,6 +20,7 @@ pub struct ArcticFoxStruct<T: Cub> {
 }
 
 pub trait Freezer {
+    fn froze(&self, freezer_reason: &str) -> &dyn Freezer;
     fn agent(&self) -> String;
 } 
 
@@ -36,8 +34,8 @@ impl<'a, T: Cub> std::marker::Unpin for ArcticFox<'a, T> {}
 impl<'a, T: Cub> std::clone::Clone for ArcticFox<'a, T> {
     fn clone(&self) -> Self {
         match self {
-            Live(t) => Live(*t),
-            Frozen(t, fr) => Frozen(*t, *fr),
+            Live(t) => Live(t.clone()),
+            Frozen(t, fr) => Frozen(t.clone(), fr.froze(fr.agent().as_str())),
         }
     }
 }
@@ -74,14 +72,14 @@ impl<'a, T: Cub + Serialize > ArcticFox<'a, T> {
         self.clone()
     }
 
-    pub fn freeze(&self, freezer: &dyn Freezer) -> T {
+    pub fn freeze(&mut self, freezer: &'a dyn Freezer) -> T {
         let holder: T; 
         match self {
             Live(t) => {
-                *self = Frozen(*t, freezer);
-                holder = *t;
+                holder = t.clone();
+                *self = Frozen(holder.clone(), freezer);
             },
-            Frozen(t, _) => { holder = *t; } 
+            Frozen(t, _) => { holder = t.clone(); } 
         } 
         holder
     }

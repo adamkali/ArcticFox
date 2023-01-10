@@ -29,19 +29,22 @@
 //! })
 //!
 //! ```
-pub mod arctic_fox_data_structures;
-pub mod arctic_fox_error;
+mod arctic_fox_data_structures;
 
 #[macro_use]
 pub mod macros;
 
 pub mod prelude {
     pub use crate::arctic_fox_data_structures::arctic_fox_monad::{
-        ArcticFox,
-        ArcticFoxStruct,
         Frozen,
         Live,
     };
     pub use crate::arctic_fox_data_structures::cub::Cub;
     pub use crate::arctic_fox_data_structures::adopted_cub::AdoptedCub;
 }
+
+pub use crate::arctic_fox_data_structures::arctic_fox_monad::{
+    ArcticFox,
+    ArcticFoxStruct,
+    Freezer
+};
