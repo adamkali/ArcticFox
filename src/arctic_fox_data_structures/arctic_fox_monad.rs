@@ -85,7 +85,7 @@ impl<'a, T: Cub + Serialize > ArcticFox<'a, T> {
     }
 }
 
-#[cfg(feature = "arctic_actix")]
+#[cfg(arctic_actix)]
 pub mod arctic_actix {
     use crate::{ArcticFox, prelude::*, Freezer, ArcticFoxStruct};
 
@@ -106,7 +106,7 @@ pub mod arctic_actix {
 
     static SUCCESSFUL_MESSAGE: &str = "The request was successful";
 
-    impl<T: Cub + Serialize + Clone> MessageBody for ArcticFox<'a, T> {
+    impl<'a, T: Cub + Serialize + Clone> MessageBody for ArcticFox<'a, T> {
         type Error = Infallible;
 
         fn size(&self) -> BodySize {
@@ -117,8 +117,8 @@ pub mod arctic_actix {
                 Self::Live(data) => {
                     payload_bytes += data.size() + SUCCESSFUL_MESSAGE.len() as u64;
                 },
-                Self::Frozen(data, fox_error) => {
-                    payload_bytes += data.size() + fox_error.err().len() as u64;
+                Self::Frozen(data, freezer) => {
+                    payload_bytes += data.size() + freezer.agent().len() as u64;
                 }
             }
 
