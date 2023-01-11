@@ -87,7 +87,7 @@ impl<'a, T: Cub + Serialize > ArcticFox<'a, T> {
 
 #[cfg(feature = "arctic_actix")]
 pub mod arctic_actix {
-    use crate::prelude::*;
+    use crate::{ArcticFox, prelude::*, Freezer};
 
     use core::task::Poll;
     use actix_web::{
@@ -102,9 +102,9 @@ pub mod arctic_actix {
         future::Future,
     };
 
-    use std::future::Future;
-
     use serde::Serialize;
+
+    static SUCCESSFUL_MESSAGE: &str = "The request was successful";
 
     impl<T: Cub + Serialize + Clone> MessageBody for ArcticFox<T> {
         type Error = Infallible;
