@@ -1,17 +1,7 @@
 use super::cub::Cub;
-
-//use std::{
-//    convert::Infallible, 
-//    pin::Pin, 
-//    task::Context,
-//    future::Future,
-//};
-
 use std::future::Future;
-
 use serde::Serialize;
 
-//use crate::{unauthorized, bond};
 
 #[derive(Serialize)]
 pub struct ArcticFoxStruct<T: Cub> {
@@ -41,6 +31,7 @@ impl<'a, T: Cub> std::clone::Clone for ArcticFox<'a, T> {
 }
 
 impl<'a, T: Cub + Serialize > ArcticFox<'a, T> {
+
     pub fn run<F>(&mut self, f: F) -> &mut Self 
         where F: FnOnce(T) -> Result<T, &'a dyn Freezer>
     {
@@ -84,6 +75,74 @@ impl<'a, T: Cub + Serialize > ArcticFox<'a, T> {
         holder
     }
 }
+
+#[derive(Default, Clone, PartialEq, Eq)]
+pub struct Pack<I> {
+    it: I
+}
+
+impl<'a, I, T: 'a> Iterator for Pack<I>
+where
+    I: Iterator<Item = &'a T>,
+    T: Cub + Serialize
+{
+    type Item = T;
+
+    fn next(&mut self) -> Option<T> {
+         self.it.next().cloned()
+    }
+}
+
+impl<'a, I, T: 'a> Pack<I>
+where
+    I: Iterator<Item = &'a T>,
+    T: Cub + Serialize + PartialEq + Eq
+{
+    pub fn new(it: I) -> Pack<I> {
+        Pack { it }
+    }
+
+    pub fn operate(
+        &mut self, 
+        f: &'a mut impl FnMut(T) 
+            -> Result<T, Box::<dyn std::error::Error>>
+    ) -> Result<(), Box::<dyn std::error::Error>> { 
+        while let Some(i) = self.next() {
+            if let Err(e) = f(i) {
+                return Err(e);
+            }
+        }
+        Ok(())
+    }
+}
+impl<T, I> Cub for Pack<I>
+where
+    I: Iterator<Item = T> + Default + Clone,
+    T: Cub
+{
+    fn size(&self) -> u64 {
+        let mut size: u64 = 0_u64;
+        if let Some(i) = self.it.next() {
+            let temp = i.size();
+            size += temp;
+            while let Some(j) = self.it.next() { size += temp; }
+        }
+        size
+    }
+}
+
+impl<'a, I, T: 'a> ArcticFox<'a, I>
+where
+    I: Iterator<Item = &'a T> + Cub,
+    T: Cub + Serialize + PartialEq + Eq
+{
+    pub fn new(pack: I) -> ArcticFox<'a, I> {
+         Live(pack) 
+    }
+
+
+}
+
 
 #[cfg(arctic_actix)]
 pub mod arctic_actix {

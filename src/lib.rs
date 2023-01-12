@@ -39,7 +39,11 @@ pub mod prelude {
         Frozen,
         Live,
     };
+}
+
+pub mod traits {
     pub use crate::arctic_fox_data_structures::cub::Cub;
+    pub use crate::arctic_fox_data_structures::pack::Pack;
     pub use crate::arctic_fox_data_structures::adopted_cub::AdoptedCub;
 }
 
