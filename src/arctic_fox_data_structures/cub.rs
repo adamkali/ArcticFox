@@ -44,7 +44,7 @@ use std::{
 ///     }
 /// }
 /// ```
-pub trait Cub: Default + Clone  {
+pub trait Cub: Default + Clone + PartialEq {
     //fn new(id: Option<String>) -> Self;
 
     fn size(&self) -> u64;
