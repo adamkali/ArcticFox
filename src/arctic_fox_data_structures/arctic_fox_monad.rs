@@ -1,6 +1,9 @@
+use futures::stream::{iter, StreamExt};
 use super::cub::Cub;
 use std::future::Future;
 use serde::Serialize;
+
+type Error = Box::<dyn std::error::Error>;
 
 
 #[derive(Serialize)]
@@ -9,39 +12,33 @@ pub struct ArcticFoxStruct<T: Cub> {
     pub message: String,
 }
 
-pub trait Freezer {
-    fn froze(&self, freezer_reason: &str) -> &dyn Freezer;
-    fn agent(&self) -> String;
-    fn fr(e: &dyn std::err::Err) -> &dyn Freezer;
-} 
-
-pub enum ArcticFox<'a, T: Cub> {
+pub enum ArcticFox<T: Cub> {
     Live(T),
-    Frozen(T, &'a dyn Freezer),
+    Frozen(T, Error),
 }
 
 
-impl<'a, T: Cub> std::marker::Unpin for ArcticFox<'a, T> {}
+impl<T: Cub> std::marker::Unpin for ArcticFox< T> {}
 
-impl<'a, T: Cub> std::clone::Clone for ArcticFox<'a, T> {
+impl<T: Cub> std::clone::Clone for ArcticFox<T> {
     fn clone(&self) -> Self {
         match self {
-            Live(t) => Live(t.clone()),
-            Frozen(t, fr) => Frozen(t.clone(), fr.froze(fr.agent().as_str())),
+            Live(t)         => Live(t.clone()),
+            Frozen(t, fr)   => Frozen(t.clone(), *fr),
         }
     }
 }
 
-impl<'a, T: Cub + Serialize > ArcticFox<'a, T> {
+impl<T: Cub + Serialize > ArcticFox<T> {
 
     pub fn run<F>(&mut self, f: F) -> &mut Self 
-        where F: FnOnce(T) -> Result<T, &'a dyn Freezer>
+        where F: FnOnce(T) -> Result<T, Error>
     {
         match self {
             ArcticFox::Live(data) => {
                 match f(data.clone()) {
-                    Ok(new_data) => {*self = ArcticFox::Live(new_data);},
-                    Err(fr) => { let _ = self.freeze(fr); }
+                    Ok(new_data)    => { *self = Live(new_data);},
+                    Err(fr)         => { *self = Frozen(data.clone(), fr); }
                 }
             },
             ArcticFox::Frozen(_, _) => (),
@@ -49,15 +46,15 @@ impl<'a, T: Cub + Serialize > ArcticFox<'a, T> {
         self
     }
 
-    pub async fn arun<F, Fut>(&mut self, f: F) -> ArcticFox<'a, T>
-        where F: FnOnce(T) -> Fut, Fut: Future<Output = Result<T, &'a dyn Freezer>>
+    pub async fn arun<F, Fut>(&mut self, f: F) -> ArcticFox<T>
+        where F: FnOnce(T) -> Fut, Fut: Future<Output = Result<T, Error>>
     {
         match self {
             Live(data) => {
                 let new_data = f(data.clone()).await;
                 match new_data {
-                    Ok(new_data) => { *self = Live(new_data); },
-                    Err(fr) => { let _ = self.freeze(fr); }
+                    Ok(new_data)    => { *self = Live(new_data); },
+                    Err(fr)         => { *self = Frozen(data.clone(), fr); }
                 }
             },
             Frozen(_,_) => (),
@@ -65,7 +62,7 @@ impl<'a, T: Cub + Serialize > ArcticFox<'a, T> {
         self.clone()
     }
 
-    pub fn freeze(&mut self, freezer: &'a dyn Freezer) -> T {
+    pub fn freeze(&mut self, freezer: Error) -> T {
         let holder: T; 
         match self {
             Live(t) => {
@@ -78,7 +75,7 @@ impl<'a, T: Cub + Serialize > ArcticFox<'a, T> {
     }
 }
 
-#[derive(Default, Clone, PartialEq)]
+#[derive(Default, Clone, PartialEq, Serialize)]
 pub struct Pack<I> {
     it: I
 }
@@ -134,35 +131,35 @@ where
     }
 }
 
-impl<'a, I, T: 'a> ArcticFox<'a, I>
+impl<'a, I, T: 'a> ArcticFox<I>
 where
-    I: Iterator<Item = &'a T> + Cub,
-    T: Cub 
+    I: Iterator<Item = &'a T> + Cub + Serialize,
+    T: Cub + Serialize + Eq
 {
-    pub fn new(pack: I) -> ArcticFox<'a, I> {
+    pub fn new(pack: I) -> ArcticFox<I> {
          Live(pack) 
     }
 
     /// should not plan to add in any new data here... which i think is obvious.
-    pub fn pack<F>(&mut self, f: F) -> &mut ArcticFox<'a, I> 
-        where F: FnMut(T) -> Result<T, &'a dyn Freezer>
+    pub fn pack<F>(&mut self, f: F) -> &mut ArcticFox<I> 
+        where F: FnMut(T) -> Result<T, Error>
     {
         match *self {
             Frozen(_, _) => {},
             Live(s) => {
-                let ns: Vec<T> = s.collect();
+                let ns: Vec<&'a T> = Vec::from_iter(s);
                 let iter = s.enumerate();
                 iter.for_each(|(i, mut item)| {
-                    match f(&mut item) {
-                        Ok(n_item) => { ns[i] = n_item; },
-                        Err(e) => { *self = Frozen(item, Freezer::fr(e.err())) },
+                    match f(*item) {
+                        Ok(n_item) => { ns[i] = &n_item; },
+                        Err(e) => { 
+                            *self = Frozen(s.clone(), e)  
+                        },
                     } 
                 });
                 if let Live(ss) = *self {
                     *self = Live(
-                        iter.map(|(item,_)| item)
-                            .collect::<Vec<_>>()
-                            .into_iter()
+                        Pack::new(ss).it
                         )
                 } 
             },     
@@ -170,129 +167,33 @@ where
         self
     }
 
-    pub async fn apack<F, Fut>(&mut self, f: F) -> ArcticFox<'a, T>
-        where F: FnMut(T) -> Fut, Fut: Future<Output = Result<T, &'a dyn Freezer>>
+    pub async fn apack<F, Fut>(&mut self, f: F) -> ArcticFox<I>
+        where F: FnMut(&'a T) -> Fut, Fut: Future<Output = Result<T, Error>>
     {
-        match *self {
-            Frozen(0, 1) => {},
-            Live(0) => {
-                let n_vec = iter(s)
-                        .map(f)
-                        .buffered(8)
-                        .find(|res| match res {
-                            Ok(_) => false,
-                            Err(e) => {
-                                *self = Frozen(self, Freezer::fr(e.err()));
-                                true
-                            }
-                        })
-                        .collect::<Vec<_>>()
-                        .await;
-                if let Froxen(_,_) = *self { return self; }
-                *self = Live(n_vec.into_iter());
+        match self {
+            Frozen(_, _) => (),
+            Live(s) => {
+                let erred = false;
+                let vector: Vec<&'a T> = Vec::new();
+                let stream = iter(s);
+                stream.for_each_concurrent(
+                    None,
+                    async |item| {
+                        let _ = match f(item).await {
+                            Ok(_) => todo!(),
+                            Err(_) => todo!()
+                        };
+                    });
             }
         }
-        self
+        *self
     }
 
-    pub fn fpack(&mut self, freezer: &'a dyn Freezer) -> I {
-        match mem::replace(self, Frozen(self, freezer)) {
+    pub fn fpack(&mut self, freezer: Error) -> I {
+        match std::mem::replace(self, Frozen(self, freezer)) {
             Frozen(_,_) => {},
             Live(iter) => iter
         }
-    }
-}
-
-
-
-#[cfg(arctic_actix)]
-pub mod arctic_actix {
-    use crate::{ArcticFox, prelude::*, Freezer, ArcticFoxStruct};
-
-    use core::task::Poll;
-    use actix_web::{
-        web::Bytes,
-        body::{MessageBody, BodySize},
-    };
-
-    use std::{
-        convert::Infallible, 
-        pin::Pin, 
-        task::Context,
-        future::Future,
-    };
-
-    use serde::Serialize;
-
-    static SUCCESSFUL_MESSAGE: &str = "The request was successful";
-
-    impl<'a, T: Cub + Serialize + Clone> MessageBody for ArcticFox<'a, T> {
-        type Error = Infallible;
-
-        fn size(&self) -> BodySize {
-
-            let mut payload_bytes: u64 = 0_u64;
-
-            match &self {
-                Self::Live(data) => {
-                    payload_bytes += data.size() + SUCCESSFUL_MESSAGE.len() as u64;
-                },
-                Self::Frozen(data, freezer) => {
-                    payload_bytes += data.size() + freezer.agent().len() as u64;
-                }
-            }
-
-            BodySize::Sized(payload_bytes)
-        }
-
-        fn poll_next(
-            self: Pin<&mut Self>,
-            _cx: &mut Context<'_>,
-        ) -> Poll<Option<Result<Bytes, Self::Error>>> {
-            let data = self.get_mut();
-
-            let payload_string = match data {
-                ArcticFox::Live(d) => {
-                    serde_json::to_string_pretty(
-                        & ArcticFoxStruct {
-                            data: d.clone(),
-                            message: SUCCESSFUL_MESSAGE.to_string(),
-                        }
-                    )
-                },
-                ArcticFox::Frozen(d, e) => {
-                    serde_json::to_string_pretty(
-                        & ArcticFoxStruct {
-                            data: d.clone(),
-                            message: e.err()
-                        }
-                    )
-                }
-            };
-
-            let payload_bytes = Bytes::from(payload_string
-                                                .unwrap_or_else(|_|
-                                                    "Something went wrong...".to_string()));
-
-            Poll::Ready(Some(Ok(payload_bytes)))
-        }
-    }
-
-    
-    impl<'a, I, T: 'a> MessageBody for ArcticFox<'a, I> {
-        type Error = Infallible;
-
-        fn size(&self) -> BodySize {
-            Pack::new(self).size();            
-        }
-
-        fn poll_next(
-            self: Pin<&mut Self>,
-            _cx: &mut Context<'_>,
-        ) -> Poll<Option<Result<Bytes, Self::Error>>> {
-            todo!()
-        }
-        
     }
 }
 
